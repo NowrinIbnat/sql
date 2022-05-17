@@ -1,0 +1,166 @@
+2. Create a EMP_DBA user with password adminf
+create user 'EMP_DBA'@'localhost' identified by 'admin';
+
+3. Grant the dba role (all privileges ) to EMP_DBA
+grant all privileges on . to 'EMP_DBA'@'localhost' with grant option;
+
+4. Connect to the EMPLOYEE database as EMP_DBA
+mysql -u EMP_DBA -p
+Password: admin
+use EMPLOYEE
+
+5. Build the relational schema of Figure:1
+
+create table locations (locationID int primary key,
+postalCode varchar(10),
+city varchar(20),
+countryID char(2)
+);
+
+create table jobs (jobID varchar(20) primary key,
+jobTitle varchar(50),
+minSalary int,
+maxSalary int
+);
+
+create table departments (departmentID int primary key,
+departmentName varchar(30),
+managerID int references staffs(employeeID),
+locationID int references locations(locationID)
+);
+
+create table staffs (employeeID int primary key,
+lastName varchar(30),
+email varchar(30),
+hiteDate varchar(20),
+jobID varchar(20) references jobs(jobID),
+salary float,
+managerID int references staffs(employeeID),
+departmentID int references departments(departmentID)
+);
+
+create table job_history(employeeID int references staffs(employeeID),
+startDate varchar(20),
+endDate varchar(20),
+jobID varchar(20) references jobs(jobID),
+departmentID int references departments(departmentID),
+primary key(employeeID, startDate)
+);
+
+7. Display the names and hire dates for all employees who were hired before their managers,
+along with their manager’s names and hire dates.
+select s2.lastName, s2.hiteDate, s1.lastName, s1.hiteDate
+from (select employeeID, lastName, email, to_date(hiteDate, 'DD-Mon-RR')
+from staffs) as s1, (select employeeID, lastName, email,
+to_date(hiteDate, 'DD-Mon-RR')
+from staffs) as s2
+where s1.managerID=s2.employeeID and s2.hiteDate < s1.hiteDate;
+(applicable for Oracle)
+select s2.lastName, s2.hiteDate, s1.lastName, s1.hiteDate
+from staffs as s1, staffs as s2
+where s1.managerID=s2.employeeID and s2.hiteDate < s1.hiteDate;
+(correct only when hire dates are taken as date data type)
+
+8. Write a query to show the name of the department that has highest number of job categories.
+Answer: departmentID: 50 departmentNameShipping, NumberOfJobs:45
+select d.departmentID, d.departmentName, count(jobID) as NumberOfJobs
+from departments d join staffs s on d.departmentID=s.departmentID
+group by departmentID, departmentName
+having count(jobID)= (select max(total)
+from (select count(jobID) as total
+from staffs
+group by departmentID) as newtable);
+
+9. Write a query who earn less than the average salary in their departments. Show lastName,
+departmentID, salary, and the average salary of that department. Answer: Hints: For example,
+a department with ID number 50 has average salary 3475.55. show the employees of the departmentID 50 who earns less than 3475.55. In total 65 rows will be selected for this
+answer.
+select s1.lastName, s1.departmentID, s1.salary, (select avg(s2.salary)
+from staffs s2
+where s2.departmentID=s1.departmentID
+group by s2.departmentID) as sal
+from staffs s1
+where s1.salary < (select avg(salary)
+from staffs s3
+where s3.departmentID=s1.departmentID
+group by s3.departmentID);
+
+10. Display the managerID and the salary of the highest paid employee for that manager. **
+show the employees’s name as well.
+select e1.managerID as managerID, e1.salary as salary, e1.lastName as
+employeeName
+from staffs e1, staffs m1
+where e1.managerID=m1.employeeID and e1.salary = (select max(e2.salary)
+from staffs e2, staffs m2
+where m1.employeeID=m2.employeeID
+and e2.managerID=m2.employeeID
+group by m2.employeeID);
+
+11. Write a query that outputs the results shown in TABLE 1:
+with recursive managerEmployee(mng, emp, depth) as (
+select managerID, employeeID, 1
+from staffs
+where employeeID=100
+union
+select me.mng, s.employee, me.depth+1
+from managerEmployee me, (select s1.employeeID as manager, s2.employeeID as
+employee
+from staffs s1, staffs s2
+where s1.employeeID=s2.managerID) as s
+where me.emp=s.manager
+)
+select me_.emp as LAST_NAME, s.lastName as EMPLOYEE_ID, me_.mng as
+MANAGER_ID, depth as LEVEL
+from managerEmployee me_, staffs s
+where me_.emp=s.employeeID;
+
+12. Create a user named “King” and grant access to him only on the information related to him,
+i.e, he can see only his employee, job, department, location and job history records; not
+others. Hints: you can create a view under the DBA user and grant the access on that view
+to King.
+create user 'king'@'localhost';
+
+create view info_king_emp as
+select *
+from staffs
+where lastName='King';
+
+create view info_king_job as
+select j.jobID, jobTitle, minSalary, maxSalary
+from staffs s, jobs j
+where s.jobID=j.jobID and s.lastName='King';
+
+create view info_king_dept as
+select d.departmentID, departmentName, d.managerID, locationID
+from staffs s, departments d
+where s.departmentID=d.departmentID and s.lastName='King';
+
+create view info_king_loc as
+select l.locationID, postalCode, city, countryID
+from staffs s, departments d, locations l
+where s.departmentID=d.departmentID and d.locationID=l.locationID and
+s.lastName='King';
+
+create view info_king_jobHis as
+select jh.employeeID, startDate, endDate, jh.jobID, jh.departmentID
+from job_history jh, staffs s
+where s.employeeID=jh.employeeID and s.lastName='King';
+grant all on employee.info_king_emp to 'king'@'localhost';
+
+grant all on employee.info_king_job to 'king'@'localhost';
+grant all on employee.info_king_dept to 'king'@'localhost';
+grant all on employee.info_king_loc to 'king'@'localhost';
+grant all on employee.info_king_jobHis to 'king'@'localhost';
+
+
+
+revoke privileges:
+REVOKE ALL, GRANT OPTION
+    FROM 'BNA'@localhost;
+
+drop user:
+  drop user 'BNA'@localhost;
+
+rename user:
+RENAME USER old_user1 
+TO new_user;

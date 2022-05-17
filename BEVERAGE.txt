@@ -1,0 +1,20 @@
+
+Member(memberID, memberName)
+
+Beverage(bID, customerID) (customerID referencing Member.memberID)<--have one beverage entity for each cup sold.
+
+Coffee(coffeeName, bID) (bID referencing Beverage.bID)
+
+Tea(teaName, bID) (bID referencing Beverage.bID)
+ANSWER:
+select
+  memberID
+from
+  Member
+where
+  memberID IN (select customerID
+                 from Beverage inner join Coffee on Beverage.bID = Coffee.bID)
+AND
+  memberID IN (select customerID
+                 from Beverage inner join Tea on Beverage.bID = Tea.bID)
+

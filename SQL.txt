@@ -1,0 +1,47 @@
+table 1 - patient
+patientid
+pname
+address
+amount
+ptype
+table 2 - hospital
+
+hospitalid
+hname
+htype
+
+table 3 - doctor
+doctorid
+dname
+specialization
+hospitalid
+status
+table 4 - billing
+
+billingid
+patientid
+doctorid
+fees
+billdate
+Display doctorid, dname, total fees received by the doctor(s) who have treated more than one patient?
+
+select doctorId, count(patientId) as patientCount
+from (select distinct doctorId, patientId from billing) as a
+group by doctorId
+having count(patientId)>1;
+
+select
+    d.doctorId, d.doctorName, a.totalFees
+from
+    doctor as d
+    inner join (
+        select doctorId, sum(fees) as totalFees
+        from billing
+        group by doctorId
+    ) as a on d.doctorId = a.doctorId
+    inner join (
+        select doctorId, count(patientId) as patientCount
+        from (select distinct doctorId, patientId from billing) as a
+        group by doctorId
+        having count(patientId)>1;
+    ) as b on d.doctorId = b.doctorId;
